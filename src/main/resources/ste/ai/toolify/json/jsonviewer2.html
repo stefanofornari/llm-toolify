@@ -1,0 +1,200 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='UTF-8'>
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>JSON format viewer</title>
+    <style>
+        *{margin: 0; padding:0; font-size: 16px; font-family: "Consolas", "Arial", "Monaco", "Osaka", "serif"; background-color: #272822; color: #fff}
+        body {overflow-y: scroll; overflow-x: hidden;}
+        pre{white-space: pre-wrap; word-wrap: break-word; overflow-wrap: break-word; display: block;}
+        #json-renderer {padding: 1em 2em;}
+        ul.json-dict, ol.json-array {list-style-type: none; margin: 0 0 0 1px; border-left: 1px dotted #666; padding-left: 2em;}
+        .json-key {color: #7bdcfe;}
+        .json-value {color: #ce9178;}
+        .json-literal {color: #b5cea8;}
+        a.json-toggle {position: relative; color: inherit; text-decoration: none; cursor: pointer;}
+        a.json-toggle:focus {outline: none;}
+        a.json-toggle:before {font-size: 1.1em; color: #666; content: "\25BC"; position: absolute; display: inline-block; width: 1em; text-align: center; line-height: 1em; left: -1.2em;}
+        a.json-toggle:hover:before {color: #aaa;}
+        a.json-toggle.collapsed:before {content: "\25B6";}
+        a.json-placeholder {color: #aaa; padding: 0 1em; text-decoration: none; cursor: pointer;}
+        a.json-placeholder:hover {text-decoration: underline;}
+        .hidden {display: none;}
+    </style>
+</head>
+<body>
+<pre id="json-renderer"></pre>
+</body>
+<script>
+    class JSONViewer {
+        constructor(options = {}) {
+            this.options = Object.assign({rootCollapsable: true, clickableUrls: true, bigNumbers: false}, options);
+        }
+
+
+        isCollapsable(arg) {
+            return arg instanceof Object && Object.keys(arg).length > 0;
+        }
+
+
+        isUrl(string) {
+            const protocols = ['http', 'https', 'ftp', 'ftps'];
+            return protocols.some(protocol => string.startsWith(protocol + '://'));
+        }
+
+
+        htmlEscape(s) {return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&apos;').replace(/"/g, '&quot;');}
+
+
+        json2html(json) {
+            let html = '';
+            if (typeof json === 'string') {
+                json = this.htmlEscape(json);
+                if (this.options.clickableUrls && this.isUrl(json)) {
+                    html += `<a href="${json}" class="json-value" target="_blank">${json}</a>`;
+                } else {
+                    json = json.replace(/&quot;/g, '\\&quot;');
+                    html += `<span class="json-value">"${json}"</span>`;
+                }
+            } else if (typeof json === 'number' || typeof json === 'bigint') {
+                html += `<span class="json-literal">${json}</span>`;
+            } else if (typeof json === 'boolean') {
+                html += `<span class="json-literal">${json}</span>`;
+            } else if (json === null) {
+                html += '<span class="json-literal">null</span>';
+            } else if (Array.isArray(json)) {
+                if (json.length > 0) {
+                    html += '[<ol class="json-array">';
+                    for (let i = 0; i < json.length; ++i) {
+                        html += '<li>';
+                        if (this.isCollapsable(json[i])) {
+                            html += '<a class="json-toggle"></a>';
+                        }
+                        html += this.json2html(json[i]);
+                        if (i < json.length - 1) {
+                            html += ',';
+                        }
+                        html += '</li>';
+                    }
+                    html += '</ol>]';
+                } else {
+                    html += '[]';
+                }
+            } else if (typeof json === 'object') {
+                if (this.options.bigNumbers && (typeof json.toExponential === 'function' || json.isLosslessNumber)) {
+                    html += `<span class="json-literal">${json.toString()}</span>`;
+                } else {
+                    const keyCount = Object.keys(json).length;
+                    if (keyCount > 0) {
+                        html += '{<ul class="json-dict">';
+                        let count = 0;
+                        for (const key in json) {
+                            if (Object.prototype.hasOwnProperty.call(json, key)) {
+                                const jsonElement = json[key];
+                                const escapedKey = this.htmlEscape(key);
+                                const keyRepr = `<span class="json-key">"${escapedKey}"</span>`;
+                                html += '<li>';
+                                if (this.isCollapsable(jsonElement)) {
+                                    html += `<a class="json-toggle">${keyRepr}</a>`;
+                                } else {
+                                    html += keyRepr;
+                                }
+                                html += ': ' + this.json2html(jsonElement);
+                                if (++count < keyCount) {
+                                    html += ',';
+                                }
+                                html += '</li>';
+                            }
+                        }
+                        html += '</ul>}';
+                    } else {
+                        html += '{}';
+                    }
+                }
+            }
+            return html;
+        }
+
+
+        render(jsonData) {
+            const html = this.json2html(jsonData);
+            const rootElement = document.getElementById('json-renderer');
+
+            if (this.options.rootCollapsable && this.isCollapsable(jsonData)) {
+                rootElement.innerHTML = '<a class="json-toggle"></a>' + html;
+            } else {
+                rootElement.innerHTML = html;
+            }
+
+            const toggleChildren = (element, collapse) => {
+                const childToggles = element.querySelectorAll('.json-toggle');
+                childToggles.forEach(toggle => {
+                    const container = toggle.nextElementSibling;
+                    if (container && (container.classList.contains('json-dict') || container.classList.contains('json-array'))) {
+                        const isCollapsed = toggle.classList.contains('collapsed');
+                        if (collapse !== isCollapsed) {
+                            toggle.click();
+                        }
+                    }
+                });
+            };
+
+            document.addEventListener('click', (e) => {
+                if (e.target.matches('.json-toggle')) {
+                    e.preventDefault();
+                    const target = e.target;
+                    target.classList.toggle('collapsed');
+                    const container = target.nextElementSibling;
+                    if (container && (container.classList.contains('json-dict') || container.classList.contains('json-array'))) {
+                        container.classList.toggle('hidden');
+                        if (e.ctrlKey) {
+                            toggleChildren(container, target.classList.contains('collapsed'));
+                        }
+
+                        const siblings = container.parentNode.children;
+                        for (let i = Array.from(siblings).indexOf(container) + 1; i < siblings.length; i++) {
+                            if (siblings[i].classList.contains('json-placeholder')) {
+                                siblings[i].remove();
+                                i--;
+                            }
+                        }
+
+                        if (container.classList.contains('hidden')) {
+                            const count = container.children.length;
+                            let placeholder = document.createElement('a');
+                            placeholder.className = 'json-placeholder';
+                            placeholder.textContent = `${count} ${count > 1 ? 'items' : 'item'}`;
+                            if (! container.nextElementSibling?.classList.contains('json-placeholder')) {
+                                container.parentNode.insertBefore(placeholder, container.nextSibling);
+                            }
+                        }
+                    }
+                } else if (e.target.matches('.json-placeholder')) {
+                    e.preventDefault();
+                    const toggle = e.target.previousElementSibling.previousElementSibling;
+                    if (toggle) {
+                        toggle.click();
+                    }
+                }
+            });
+        }
+    }
+
+
+    const inputJson = '{"id":"9a318229-5901-47ec-97fa-cf04f6ab6c2d","model":"sonar","created":1770246897,"usage":{"prompt_tokens":7,"completion_tokens":364,"total_tokens":371,"search_context_size":"low","cost":{"input_tokens_cost":0.00001,"output_tokens_cost":0.00036,"request_cost":0.005,"total_cost":0.00537}},"citations":["https://en.wikipedia.org/wiki/HTTP","https://http.dev","https://www.hylo.com","https://www.heylo.com","https://www.youtube.com/watch?v=uCyWo7r-aHY","https://www.youtube.com/channel/UCN9itVckwCyIIVCrcbZuSGA","https://hellow.com","https://www.dailymotion.com/video/x6i2rpz","https://www.youtube.com/watch?v=LhHJqE-hvzk","https://www.youtube.com/watch?v=RzzxiTNmFmc"],"search_results":[{"title":"HTTP - Wikipedia","url":"https://en.wikipedia.org/wiki/HTTP","date":"2001-10-29","last_updated":"2026-01-27","snippet":"HTTP (Hypertext Transfer Protocol) is an application layer protocol in the Internet protocol suite for distributed, collaborative, hypermedia information ...","source":"web"},{"title":"HyperText Transfer Protocol (HTTP) explained","url":"https://http.dev","date":"2022-07-06","last_updated":"2026-02-02","snippet":"The foundation and primary means for requesting and receiving hypermedia (web-based) resources, for example HTML, images, text and media files.","source":"web"},{"title":"Hylo","url":"https://www.hylo.com","date":"2013-01-01","last_updated":"2026-01-20","snippet":"Hylo is the place where people who are passionate about their dreams come together to support each other and make them a reality.","source":"web"},{"title":"Heylo | Build Community Groups","url":"https://www.heylo.com","date":"2025-01-01","last_updated":"2025-12-21","snippet":"Your amazing group, now with happier members. Get organized with events, chats, and payments in your group's customizable space.","source":"web"},{"title":"T.I. - Hello (feat. CeeLo Green) [Official Audio] - YouTube","url":"https://www.youtube.com/watch?v=uCyWo7r-aHY","date":"2013-05-09","last_updated":"2025-11-26","snippet":": Heavy Is The Head\" available now! iTunes: http://smarturl.it/TroubleManHITH Amazon: http://smarturl.it/TroubleManAmazon Follow T.I. https ...","source":"web"},{"title":"HI-LO - YouTube","url":"https://www.youtube.com/channel/UCN9itVckwCyIIVCrcbZuSGA","date":"2025-04-08","last_updated":"2025-04-09","snippet":"Subscribe: https://bit.ly/SubscribeOH · HI-LO B2B ELI BROWN LIVE AT ULTRA MUSIC FESTIVAL MIAMI 2024 [4K] · HI-LO DJ set live @ Tomorrowland #UnitedThroughMusic.","source":"web"},{"title":"Hellow","url":"https://hellow.com","date":"2020-09-04","last_updated":"2026-01-04","snippet":"Despúes de un break regresa Fashion Forward, la sección donde recapitulamos los sucesos y noticias importantes de la industria de la moda. ... Nuestro canal ...","source":"web"},{"title":"T.I. - Hello ft. CeeLo Green [Official Video] - Dailymotion","url":"https://www.dailymotion.com/video/x6i2rpz","date":"2018-04-19","snippet":"Download and stream now.! YouTube: http://bit.ly/YouTubeTIvsTIP. Apple Music/iTunes/Spotify/Pandora/Google Play: http://smarturl.it/ ...","source":"web"},{"title":"T.I. - Hello ft. CeeLo Green [Official Video] - YouTube","url":"https://www.youtube.com/watch?v=LhHJqE-hvzk","date":"2013-05-22","last_updated":"2025-10-30","snippet":"T.I. - Hello ft. CeeLo Green [Official Video] Subscribe:http://bit.ly/YouTubeTIvsTIP New album \"Trouble Man: Heavy Is The Head\" available ...","source":"web"},{"title":"H-LO - GO ft. Layal (Clip Official) - YouTube","url":"https://www.youtube.com/watch?v=RzzxiTNmFmc","date":"2024-11-14","last_updated":"2025-09-17","snippet":"Stream : H-LO - GO (feat. Layal) https://distrokid.com/hyperfollow/hlo4/go-feat-layal/ H-LO: ...","source":"web"}],"object":"chat.completion","choices":[{"index":0,"message":{"role":"assistant","content":"**HTTP** (Hypertext Transfer Protocol) is the foundational application-layer protocol of the internet protocol suite, enabling distributed, collaborative hypermedia information systems like the World Wide Web.[1][2] It operates on a client-server request-response model, where clients (e.g., web browsers) send requests to servers via URLs starting with *http* or *https*, and servers respond with resources such as HTML documents, images, or other media.[1][2]\n\n### Key Features\n- **Request-Response Cycle**: A client initiates a transaction; the server processes it and returns a response with status codes (e.g., success, failure) and optional content.[1][2]\n- **Headers**: Used by clients, servers, and intermediaries (like proxies) to exchange metadata, such as content encoding or caching instructions; some are hop-by-hop, others end-to-end.[1][2]\n- **Evolution**: Original specs from the 1990s led to HTTP/2 and HTTP/3, which improve efficiency with binary headers, single TCP connections per domain, multiplexing to avoid head-of-line blocking, and UDP support in HTTP/3.[1][2]\n- **URIs and Methods**: Resources are identified by URIs; methods like GET retrieve data, with optimizations like conditional requests to avoid resending unchanged content.[1][2]\n\nThe query \"httlo\" likely refers to a misspelling of **HTTP**, as it dominates relevant search results; other matches like \"Hylo\" (community platform[3]), \"Heylo\" (group organizer[4]), or songs/artists (e.g., T.I.'s \"Hello\"[5][9], HI-LO[6]) are less directly related.[3][4][5][6][9]"},"delta":{"role":"assistant","content":""},"finish_reason":"stop"}]}'
+    if (! inputJson) {
+        document.write('Empty json data.');
+    } else {
+        try {
+            /* bool clickableUrls   Click on the link in json to jump. */
+            const viewer = new JSONViewer({clickableUrls: false});
+            viewer.render(JSON.parse(inputJson));
+        } catch (error) {
+            document.write('Wrong json format.');
+        }
+    }
+</script>
+</html>

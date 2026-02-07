@@ -1,0 +1,22 @@
+# Development process
+
+## TDD workflow
+- use a TDD workflow:
+  - go step by step as opposed to propose gig changes
+  - start with a test that fails
+  - write the simplest code to make the test pass
+  - see it passing
+  - go to the next step, which can be:
+    - an improvement of the functionality by adding or improving a test
+    - some refactoring of the test or production code
+    - a new functionality
+
+## Frameworks and libraries
+- use apache common libraries if needed
+- use JUnit for unit tests
+- use AssertJ for fluent assertions
+  - use AssertJ's then() assertion rather than assertThat
+
+# Style and formatting
+- use final for variables by default
+- use snake naming convention for test method names

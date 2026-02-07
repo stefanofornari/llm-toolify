@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link href="jsonview.css" rel="stylesheet" />
+    <title>JSON VIEW</title>
+  </head>
+  <body>
+    <div id="tree"></div>
+
+    <script type="text/javascript" src="jsonview.umd.js"></script>
+    <script type="text/javascript" src="example.js"></script>
+    <script type="text/javascript">
+        console.log("data", data);
+        const tree = jsonview.create(data);
+        console.log("tree", tree);
+        console.log("node", document.getElementById("tree"));
+        jsonview.render(tree, document.getElementById("tree"));
+        //console.log(document.querySelector("#root").innerHTML);
+        jsonview.expand(tree);
+    </script>
+  </body>
+</html>

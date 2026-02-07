@@ -1,0 +1,18 @@
+we want to build a javafx application with the following requirements:
+- main goal: interact with an LLM providing system and user prompt and displaying
+  the answers from the model
+- it is configured with an openai API endpoint, a key and model name from java properties
+- the UI provides two main sections
+  - left section: prompts 
+    - one editable text area for the system prompt
+    - one editable text area the user prompt
+    - the system prompt must be saved so that we do not loose it when the 
+      application is closed
+- the right section: request and response
+    - one read-only text area to display the full request built and sent to
+      the model
+    - one read-only text area to display the response from the model
+- it shall use javalang4j as llm integration framework
+- at the bottom there shall be a button to send a chat request to the LLM
+- the source code shall be placed in package ste.ai.toolify
+- use interactive tools to create and edit files

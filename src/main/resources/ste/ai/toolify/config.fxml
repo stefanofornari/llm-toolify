@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Hyperlink?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.GridPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx/8.0.171" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ste.ai.toolify.ConfigController">
+    <GridPane hgap="10" vgap="10">
+        <Label text="Endpoint:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
+        <TextField fx:id="endpointField" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
+        
+        <Label text="API Key:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
+        <TextField fx:id="keyField" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
+        
+        <Label text="Model:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
+        <TextField fx:id="modelField" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+    </GridPane>
+    
+    <HBox spacing="10" style="-fx-padding: 10 0 0 0;">
+        <Button fx:id="saveButton" text="Save" onAction="#handleSave"/>
+        <Button fx:id="cancelButton" text="Cancel" onAction="#handleCancel"/>
+        <Hyperlink fx:id="settingsFolderLink" text="Open Settings Folder" onAction="#openSettingsFolder" />
+    </HBox>
+</VBox>

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.TextArea?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import ste.ai.toolify.log.LogViewer?>
+
+<VBox spacing="5.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ste.ai.toolify.MainController">
+    <HBox>
+        <VBox>
+            <TextArea fx:id="systemPromptTextArea" prefWidth="500.0" promptText="System Prompt" />
+            <TextArea fx:id="userPromptTextArea" prefWidth="500.0" promptText="User Prompt" />
+            <FlowPane alignment="CENTER_RIGHT" hgap="2.0">
+                <children>
+                    <Button fx:id="configButton" onAction="#showConfigDialog" text="Configure" />
+                    <Button fx:id="sendButton" onAction="#sendChatRequest" text="Send" />
+                </children>
+            <VBox.margin>
+               <Insets bottom="2.0" left="2.0" right="2.0" top="2.0" />
+            </VBox.margin>
+            </FlowPane>
+        </VBox>
+        <VBox>
+            <LogViewer fx:id="requestLogViewer" maxWidth="-Infinity" prefWidth="500.0" />
+            <LogViewer fx:id="responseLogViewer" maxWidth="-Infinity" prefWidth="500.0" />
+        </VBox>
+         <TextArea fx:id="llmResponseTextArea" editable="false" maxHeight="Infinity" maxWidth="500.0" promptText="LLM Response" wrapText="true" />
+    </HBox>
+    <opaqueInsets>
+        <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+    </opaqueInsets>
+    <padding>
+        <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+    </padding>
+</VBox>
