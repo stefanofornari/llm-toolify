@@ -6,6 +6,7 @@
 <?import javafx.scene.layout.FlowPane?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
+<?import javafx.scene.web.WebView?>
 <?import ste.ai.toolify.log.LogViewer?>
 
 <VBox spacing="5.0" xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ste.ai.toolify.MainController">
@@ -23,11 +24,11 @@
             </VBox.margin>
             </FlowPane>
         </VBox>
-        <VBox>
-            <LogViewer fx:id="requestLogViewer" maxWidth="-Infinity" prefWidth="500.0" />
-            <LogViewer fx:id="responseLogViewer" maxWidth="-Infinity" prefWidth="500.0" />
+        <VBox maxWidth="Infinity">
+            <LogViewer fx:id="requestLogViewer" userData="request" maxWidth="-Infinity" prefWidth="500.0" />
+            <LogViewer fx:id="responseLogViewer" userData="response" maxWidth="-Infinity" prefWidth="500.0" />
         </VBox>
-         <TextArea fx:id="llmResponseTextArea" editable="false" maxHeight="Infinity" maxWidth="500.0" promptText="LLM Response" wrapText="true" />
+        <WebView fx:id="llmResponseViewer" maxHeight="Infinity" maxWidth="Infinity"/>
     </HBox>
     <opaqueInsets>
         <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />

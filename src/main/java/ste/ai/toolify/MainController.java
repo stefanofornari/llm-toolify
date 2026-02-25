@@ -12,77 +12,117 @@ import ste.ai.toolify.log.LogViewer;
 import ste.ai.toolify.log.LogViewerHandler;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.Handler;
 import java.util.logging.Logger;
-// Removed static imports for Config constants
+import javafx.concurrent.Task;
+import javafx.scene.control.TextArea;
+import javafx.scene.web.WebEngine;
+import netscape.javascript.JSObject;
+import ste.ai.toolify.tool.FileSystemTools;
+
 
 public class MainController {
 
-    @FXML private javafx.scene.control.TextArea systemPromptTextArea;
-    @FXML private javafx.scene.control.TextArea userPromptTextArea;
+    @FXML private TextArea systemPromptTextArea;
+    @FXML private TextArea userPromptTextArea;
     @FXML private LogViewer requestLogViewer;
     @FXML private LogViewer responseLogViewer;
-    @FXML private javafx.scene.control.TextArea llmResponseTextArea;
+    @FXML private WebView llmResponseViewer;
     @FXML private Button sendButton;
     @FXML private Button configButton;
     @FXML private Button jsonButton;
 
-    public LogViewer getRequestLogViewer() {
-        return requestLogViewer;
-    }
-
-    public LogViewer getResponseLogViewer() {
-        return responseLogViewer;
-    }
-
-    private LLMService llmService; // Make it non-final so it can be re-initialized
+    private HackerWithoutTools llmService; // Make it non-final so it can be re-initialized
 
     private Handler requestHandler;
     private Handler responseHandler;
 
+    private ExecutorService executor = Executors.newCachedThreadPool();
+
     public MainController() {
-        initializeLlmService();
     }
 
     private void initializeLlmService() {
         final Config config = new Config();
-        this.llmService = new LLMService(
-            config.entry(Config.ENDPOINT),
-            config.entry(Config.API_KEY),
-            config.entry(Config.MODEL_NAME),
-            (something) -> systemPromptTextArea.getText()
-        );
+
+        try {
+            this.llmService = new HackerWithoutTools(
+                config.entry(Config.ENDPOINT),
+                config.entry(Config.API_KEY),
+                config.entry(Config.MODEL_NAME),
+                (o) -> systemPromptTextArea.getText(),
+                List.of(new FileSystemTools("."))
+            );
+        } catch (IOException x) {
+
+        }
+    }
+
+    public ExecutorService executor() {
+        return executor;
+    }
+
+    public void executor(final ExecutorService executor) {
+        this.executor = executor;
     }
 
     @FXML
     private void initialize() {
         loadSystemPrompt();
 
+        // Controllers setup
+        requestLogViewer.controller("request", this);
+        responseLogViewer.controller("response", this);
+
         // Initialize the logging handlers
         requestHandler = new LogViewerHandler("dev.langchain4j.http.client.log", requestLogViewer);
         responseHandler = new LogViewerHandler("dev.langchain4j.http.client.log", responseLogViewer);
 
+        requestHandler.setFilter((record) -> record.getMessage().startsWith("HTTP request:"));
+        responseHandler.setFilter((record) -> record.getMessage().startsWith("HTTP response:"));
+
         // Add the handlers to the respective loggers
         Logger.getLogger("dev.langchain4j.http.client.log").addHandler(requestHandler);
         Logger.getLogger("dev.langchain4j.http.client.log").addHandler(responseHandler);
+
+        // Initiali llm response viewer
+        final WebEngine engine = llmResponseViewer().getEngine();
+        engine.setOnAlert((event) -> {
+            System.out.println("ALERT: " + event.getData());
+        });
+        engine.setOnError((event) -> {
+            System.out.println("ERROR: " + event.getMessage());
+        });
+        engine.load(getClass().getResource("llmviewer.html").toExternalForm());
+
+        initializeLlmService();
     }
 
     @FXML
-    private void sendChatRequest() {
+    protected void sendChatRequest() {
         String userPrompt = userPromptTextArea.getText();
 
         if(userPrompt.isEmpty()) {
-            responseLogViewer.log("User prompt must not be empty.");
-            return;
+            llmResponseViewer.getEngine().executeScript("content('User prompt must not be empty.');");
         }
 
-        // Clear the log viewers before sending the chat request
-        requestLogViewer.clear();
-        responseLogViewer.clear();
+        executor.execute(new Task<String>() {
+            @Override
+            protected String call() throws Exception {
+                // Runs in background thread
+                return llmService.chat(userPrompt);
+            }
 
-        // Call the LLM service to get the chat completion
-        String llmResponse = llmService.chat(userPrompt);
-        llmResponseTextArea.setText(llmResponse);
+            @Override
+            protected void succeeded() {
+                JSObject window = (JSObject) llmResponseViewer.getEngine().executeScript("window");
+                window.setMember("_llmText_", getValue());
+                llmResponseViewer.getEngine().executeScript("content(window._llmText_);");
+            }
+        });
     }
 
     public void loadSystemPrompt() {
@@ -152,4 +192,35 @@ public class MainController {
         Logger.getLogger("dev.langchain4j.http.client.log").removeHandler(requestHandler);
         Logger.getLogger("dev.langchain4j.http.client.log").removeHandler(responseHandler);
     }
+
+    public void onLogClick(final String source, final String recordId) {
+        System.out.println("source: %s, id: %s".formatted(source, recordId));
+
+        if ("request".equals(source)) {
+            responseLogViewer.webView().getEngine().executeScript(
+                "highlight(document.getElementById(\"%s\"));".formatted(recordId)
+            );
+        } else {
+            requestLogViewer.webView().getEngine().executeScript(
+                "highlight(document.getElementById(\"%s\"));".formatted(recordId)
+            );
+        }
+    }
+
+    public LogViewer requestLogViewer() {
+        return requestLogViewer;
+    }
+
+    public LogViewer responseLogViewer() {
+        return responseLogViewer;
+    }
+
+    public WebView llmResponseViewer() {
+        return llmResponseViewer;
+    }
+
+    public TextArea userPromptTextArea() {
+        return userPromptTextArea;
+    }
+
 }

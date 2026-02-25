@@ -1,15 +1,26 @@
 package ste.ai.toolify.log;
 
 import java.io.IOException;
+import javafx.application.Platform;
+import javafx.concurrent.Worker;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.layout.VBox;
+import javafx.scene.web.WebEngine;
 import javafx.scene.web.WebView;
+import netscape.javascript.JSObject;
+import ste.ai.toolify.MainController;
+
 
 public class LogViewer extends VBox {
 
     @FXML
     private WebView webView;
+
+    @FXML
+    protected VBox container;
+
+    protected MainController controller;
 
     public LogViewer() {
         final FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("logviewer.fxml"));
@@ -24,34 +35,50 @@ public class LogViewer extends VBox {
 
     @FXML
     public void initialize() {
-        webView.getEngine().loadContent("<html><body></body></html>");
+        final WebEngine engine = webView.getEngine();
+
+        engine.setOnAlert((event) -> {
+            System.out.println("ALERT: " + event.getData());
+        });
+        engine.setOnError((event) -> {
+            System.out.println("ERROR: " + event.getMessage());
+        });
+        engine.getLoadWorker().stateProperty().addListener(
+            (observable, oldState, state) -> {
+                if (Worker.State.SUCCEEDED.equals(state)) {
+                    Platform.runLater(() -> {
+                        JSObject window = (JSObject) engine.executeScript("window");
+                        window.setMember("mainController", controller);
+                    });
+                }
+            }
+        );
     }
 
     public void clear() {
-        webView.getEngine().loadContent("<html><body></body></html>");
+        webView.getEngine().executeScript("clear();");
     }
 
     public String getText() {
         return (String) webView.getEngine().executeScript("document.documentElement.outerHTML");
     }
 
-    public void log(String msg) {
-        System.out.println("CHECK!!!");
-        // Sanitize the message to prevent XSS and ensure valid HTML
-        String sanitizedMsg = escapeHtml(msg);
-        
-        final String currentContent = getText();
-        System.out.println("current content: " + currentContent);
-        // Insert new message before the closing </body> tag
-        final String newContent = currentContent.replace("</body>", sanitizedMsg + "<br></body>");
-        webView.getEngine().loadContent(newContent);
+    public void log(final String record) {
+        Platform.runLater(() -> {
+            webView.getEngine().executeScript("log(%s);".formatted(record));
+        });
     }
 
-    private String escapeHtml(String text) {
-        return text.replace("&", "&amp;")
-                   .replace("<", "&lt;")
-                   .replace(">", "&gt;")
-                   .replace("\"", "&quot;")
-                   .replace("'", "&#x27;");
+    public WebView webView() {
+        return webView;
+    }
+
+    public void controller(final String role, final MainController controller) {
+        webView.getEngine().load(getClass().getResource("logviewer.html").toExternalForm() + "?role=" + role);
+        this.controller = controller;
+    }
+
+    public void controller(final MainController controller) {
+        controller("", controller);
     }
 }

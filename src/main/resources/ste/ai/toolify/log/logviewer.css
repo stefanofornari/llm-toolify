@@ -1,0 +1,16 @@
+#tree [id^="record-"] {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#tree [id^="record-"].highlighted {
+    border-left: 4px solid #2196f3;  /* Left accent (existing) */
+}
+
+#tree [id^="record-"].highlighted .json-container {
+    background-color: #e3f2fd !important;  /* Light blue row shading */
+}
+
+#tree [id^="record-"].highlighted .json-container .line {
+    background-color: rgba(227, 242, 253, 0.8) !important;  /* Slightly transparent */
+}

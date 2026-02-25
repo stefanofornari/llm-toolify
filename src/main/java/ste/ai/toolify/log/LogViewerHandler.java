@@ -13,11 +13,8 @@ public class LogViewerHandler extends Handler {
         this.logViewer = logViewer;
         setFormatter(new java.util.logging.Formatter() {
             @Override
-            public String format(LogRecord record) {
-                return "----------\n" +
-                        record.getLoggerName() + "\n" +
-                        record.getParameters() + "\n" +
-                        record.getMessage() + "\n";
+            public String format(final LogRecord record) {
+                return new HTTPLogParser().json(record.getMessage()).toString();
             }
         });
     }
@@ -27,10 +24,17 @@ public class LogViewerHandler extends Handler {
         if (loggerName != null && !record.getLoggerName().startsWith(loggerName) || !isLoggable(record)) {
             return;
         }
-        
-        System.out.println("1>" + record.getMessage());
 
-        logViewer.log(getFormatter().format(record));
+        //
+        // Capturing any throwable so that any other handler will kepp processing
+        // (if this would not be done, the exception will raise up and next
+        // handlers will not execute)
+        //
+        try {
+            logViewer.log(getFormatter().format(record));
+        } catch (Throwable x) {
+            x.printStackTrace();
+        }
     }
 
     @Override

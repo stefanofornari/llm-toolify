@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
-    
+
     <name>LLM Toolify</name>
-    
+
     <modelVersion>4.0.0</modelVersion>
     <groupId>com.github.stefanofornari.ai</groupId>
     <artifactId>toolify</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
-    
+
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>21</maven.compiler.release>
@@ -17,7 +17,7 @@
         <javafx.version>21.0.9</javafx.version>
         <testfx.version>4.0.16-alpha</testfx.version>
     </properties>
-    
+
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -29,7 +29,7 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
-    
+
     <dependencies>
         <dependency>
             <groupId>dev.langchain4j</groupId>
@@ -43,7 +43,7 @@
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-open-ai</artifactId>
         </dependency>
-        
+
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-controls</artifactId>
@@ -54,7 +54,21 @@
             <artifactId>javafx-fxml</artifactId>
             <version>${javafx.version}</version>
         </dependency>
-        
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20220924</version>
+        </dependency>
+        <dependency>
+            <groupId>org.commonmark</groupId>
+            <artifactId>commonmark</artifactId>
+            <version>0.27.1</version>
+        </dependency>
+
+        <!--
+          TEST DEPENDENCIES
+        -->
+
         <dependency>
             <groupId>org.junit.jupiter</groupId>
             <artifactId>junit-jupiter-api</artifactId>
@@ -95,7 +109,7 @@
             <artifactId>directories</artifactId>
             <version>26</version>
         </dependency>
-        
+
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-configuration2</artifactId>
@@ -109,8 +123,18 @@
         <dependency>
             <groupId>org.openjfx</groupId>
             <artifactId>javafx-web</artifactId>
-            <version>23</version>
+            <version>${javafx.version}</version>
             <type>jar</type>
+        </dependency>
+        <dependency>
+            <groupId>com.github.stefanofornari</groupId>
+            <artifactId>lambda-loop</artifactId>
+            <version>0.6.0</version>
+        </dependency>
+        <dependency>
+            <groupId>dev.toonformat</groupId>
+            <artifactId>jtoon</artifactId>
+            <version>1.0.8</version>
         </dependency>
     </dependencies>
     <build>
@@ -123,6 +147,8 @@
                     <argLine>
                         -Dglass.platform=Monocle
                         -Dmonocle.platform=Headless
+                        -Dmonocle.platform.headless.width=1024
+                        -Dmonocle.platform.headless.height=768
                         -Dprism.order=sw
                         -Dtestfx.headless=true
                         -Dtestfx.robot=glass
@@ -139,6 +165,12 @@
                         <option>-Dhttps.proxyHost=localhost</option>
                         <option>-Dhttps.proxyPort=8080</option>
                     </options-->
+                    <options>
+                        <option>--add-modules</option>
+                        <option>ALL-MODULE-PATH</option>
+                        <option>-Dcom.sun.webkit.debug=true</option>
+                        <option>-Dcom.sun.webkit.debugPort=9999</option>
+                    </options>
                 </configuration>
                 <executions>
                     <execution>
@@ -187,6 +219,11 @@
                 <configuration>
                     <source>${maven.compiler.release}</source>
                     <target>${maven.compiler.release}</target>
+                    <compilerArgs>
+                        <arg>-parameters</arg>
+                        <arg>--add-opens</arg>
+                        <arg>javafx.graphics/com.sun.javafx.application=ALL-UNNAMED</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
         </plugins>
