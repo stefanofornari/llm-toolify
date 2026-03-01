@@ -30,10 +30,7 @@ import java.util.ArrayList;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
-import dev.langchain4j.data.message.Content;
-import dev.langchain4j.data.message.ImageContent;
 import dev.langchain4j.data.message.SystemMessage;
-import dev.langchain4j.data.message.TextContent;
 import dev.langchain4j.data.message.ToolExecutionResultMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.ModelProvider;
@@ -117,27 +114,22 @@ public class DummyChatModel implements ChatModel, StreamingChatModel {
         final StringBuilder bodyBuilder = new StringBuilder();
 
         //
-        // build a string with all system and user messages
+        // build a string with the system and last user message, assuming the
+        // system message if provided is always the first one
         //
-        chatRequest.messages().forEach((msg) -> {
-            bodyBuilder.append("\n");
-            if (msg instanceof UserMessage usrMsg) {
-                for(Content c: usrMsg.contents()) {
-                    if (c instanceof TextContent txt) {
-                        bodyBuilder.append(txt.text()).append("\n");
-                    } else if (c instanceof ImageContent img) {
-                        bodyBuilder.append(img.image().url());
-                    } else {
-                        bodyBuilder.append(String.valueOf(usrMsg));
-                    }
-                }
-            } else if (msg instanceof SystemMessage sysMsg) {
-                bodyBuilder.append(sysMsg.text());
-            } else {
-                bodyBuilder.append(String.valueOf(msg));
+        final List<ChatMessage> messages = chatRequest.messages();
+        if (!messages.isEmpty()) {
+            if (messages.get(0) instanceof SystemMessage sysMsg) {
+                bodyBuilder.append(sysMsg.text()).append('\n');
             }
-        });
 
+            on(messages).step(-1).loop((msg) -> {
+                if (msg instanceof UserMessage userMsg) {
+                    bodyBuilder.append(userMsg.singleText());
+                    _break_();
+                }
+            });
+        }
         final String body = bodyBuilder.toString();
 
         AiMessage responseMessage = null;

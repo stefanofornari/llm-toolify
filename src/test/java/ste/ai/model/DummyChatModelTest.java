@@ -18,6 +18,7 @@ package ste.ai.model;
 import dev.langchain4j.agent.tool.ToolSpecifications;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.ChatMessage;
+import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.listener.ChatModelListener;
 import dev.langchain4j.model.chat.request.ChatRequest;
@@ -70,6 +71,46 @@ public class DummyChatModelTest {
 
         then(chat.doChat(chatRequest).aiMessage().text().trim())
             .startsWith("To use a mock, send a prompt containing the following instruction:");
+    }
+
+    @Test
+    public void doChat_picks_the_mock_from_system_or_last_message() {
+        final DummyChatModel chat = new DummyChatModel();
+
+        //
+        // Mock in system message
+        //
+        ChatRequest chatRequest = ChatRequest.builder().messages(
+            SystemMessage.from("use mock 'hello world.txt'"),
+            UserMessage.from("Hello!")
+        ).build();
+
+        then(chat.doChat(chatRequest).aiMessage().text().trim())
+            .isEqualToIgnoringNewLines("hello world");
+
+        //
+        // If in both system and user message, user message wins
+        //
+        chatRequest = ChatRequest.builder().messages(
+            SystemMessage.from("use mock 'hello world.txt'"),
+            UserMessage.from("Hello!"),
+            UserMessage.from("use mock error.txt")
+        ).build();
+
+        then(chat.doChat(chatRequest).aiMessage().text().trim())
+            .startsWith("Oops!");
+
+        //
+        // Always pick only the last user message
+        //
+        chatRequest = ChatRequest.builder().messages(
+            UserMessage.from("use mock error.txt!"),
+            UserMessage.from("Hello!"),
+            UserMessage.from("use mock 'hello world.txt'")
+        ).build();
+
+        then(chat.doChat(chatRequest).aiMessage().text().trim())
+            .isEqualToIgnoringNewLines("hello world");
     }
 
     @Test

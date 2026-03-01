@@ -129,7 +129,7 @@
         <dependency>
             <groupId>com.github.stefanofornari</groupId>
             <artifactId>lambda-loop</artifactId>
-            <version>0.6.0</version>
+            <version>0.6.1</version>
         </dependency>
         <dependency>
             <groupId>dev.toonformat</groupId>

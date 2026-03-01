@@ -271,8 +271,8 @@ public class HackerWithoutToolsTest {
 
     @Test
     public void send_error_on_tool_execution_exception() throws Exception {
-        final String SYSTEM_PROMPT = "system message";
-        final String USER_PROMPT = "use mock 'tool in error.txt'";
+        final String SYSTEM_PROMPT = "use mock 'tool in error.txt'";
+        final String USER_PROMPT = "let's go!";
 
         final DummyChatModel model = chatModel();
         final DummyTool tool = new DummyTool();
