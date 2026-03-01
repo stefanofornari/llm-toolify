@@ -29,9 +29,4 @@ public class ToolNotFoundException extends ToolExecutionException {
         super("tool %s not found".formatted(name));
         this.toolName = name;
     }
-
-    @Override
-    public Throwable getCause() {
-        return null;
-    }
 }

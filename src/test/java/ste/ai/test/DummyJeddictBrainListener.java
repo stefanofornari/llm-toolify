@@ -21,10 +21,10 @@ import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
-import io.github.jeddict.ai.lang.JeddictBrainListener;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.commons.lang3.tuple.Pair;
+import ste.ai.toolify.JeddictBrainListener;
 
 /**
  *

@@ -1,5 +1,2 @@
-This tool does not exists
-
-```tool:iDoNotExist
-```
+I am done
 

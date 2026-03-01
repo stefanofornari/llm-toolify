@@ -17,14 +17,23 @@
 
 package ste.ai.toolify;
 
+import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.agent.tool.ToolSpecifications;
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.data.message.SystemMessage;
+import dev.langchain4j.data.message.UserMessage;
 import dev.langchain4j.exception.ToolExecutionException;
 import dev.langchain4j.memory.chat.MessageWindowChatMemory;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.chat.listener.ChatModelErrorContext;
+import dev.langchain4j.model.chat.listener.ChatModelListener;
+import dev.langchain4j.model.chat.listener.ChatModelRequestContext;
+import dev.langchain4j.model.chat.listener.ChatModelResponseContext;
+import dev.langchain4j.model.chat.request.ChatRequest;
+import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.langchain4j.model.openai.OpenAiChatModel;
 import dev.langchain4j.service.AiServices;
 import dev.toonformat.jtoon.JToon;
-import io.github.jeddict.ai.lang.JeddictBrainListener;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.List;
@@ -52,7 +61,7 @@ public class HackerWithoutTools {
     protected final List<AbstractTool> tools;
     protected final Parser parser;
 
-    private final List<JeddictBrainListener> listeners = new CopyOnWriteArrayList<>();
+    private final JeddictListenerAdapter listenerAdapter;
 
     public HackerWithoutTools(
         final String endpoint,
@@ -70,6 +79,8 @@ public class HackerWithoutTools {
                 .build();
         this.tools = tools;
         this.parser = Parser.builder().build();
+
+        this.listenerAdapter = (JeddictListenerAdapter)chatModel.listeners().get(0);
     }
 
     public HackerWithoutTools(
@@ -87,51 +98,61 @@ public class HackerWithoutTools {
                 .modelName(modelName)
                 .logRequests(true)
                 .logResponses(true)
+                .listeners(List.of(new JeddictListenerAdapter()))
                 .build()
         );
     }
 
     public List<JeddictBrainListener> listeners() {
-        return listeners;
+        return listenerAdapter.listeners;
     }
 
     public void addListener(final JeddictBrainListener listener) {
         if (listener == null) {
             throw new IllegalArgumentException("listener can not be null");
         }
-        listeners.add(listener);
+        listenerAdapter.listeners.add(listener);
     }
 
     public void removeListener(final JeddictBrainListener listener) {
         if (listener != null) {
-            listeners.remove(listener);
+            listenerAdapter.listeners.remove(listener);
         }
     }
 
-    public String chat(final String prompt) {
-        final boolean[] toolExecution = new boolean[] { false };
-
+    public String hack(final String prompt) {
         final String[] nextPrompt = new String[] { prompt };
+        final List<JeddictBrainListener> listeners = listenerAdapter.listeners;
 
         String answer;
         int n = 0;
 
+        on(listeners).loop((listener) -> {
+            listener.onChatStarted(
+                SystemMessage.from(systemPromptProvider(String.valueOf(this.hashCode()))),
+                UserMessage.from(prompt)
+            );
+        });
+
+        final List<ExecutionJSONObject> executions = new ArrayList();
+
         do {
+            executions.clear();
             answer = toolify.chat(nextPrompt[0]);
 
             //
-            // is there any tool execution block? if so, let's execute it
+            // Is there any tool execution block? if so, let's execute it.
+            // First collect the tools so that we can fire the response event,
+            // then we can execute the tools if any.
             //
             final Node document = parser.parse(answer);
 
-            toolExecution[0] = false;
             document.accept(new AbstractVisitor() {
                 @Override
                 public void visit(FencedCodeBlock block) {
                     // Check if the info string (language tag) is "tool"
                     final String type = StringUtils.defaultString(block.getInfo());
                     if (type.startsWith("tool:")) {
-                        toolExecution[0] = true;
                         final String name = type.substring(5);
                         final String content = block.getLiteral();
                         LOG.finest(() ->
@@ -140,39 +161,57 @@ public class HackerWithoutTools {
                                 StringUtils.abbreviateMiddle(content, "...", 100)
                             )
                         );
-                        try {
-                            final String result = executeTool(new ExecutionJSONObject(name, content));
-                            nextPrompt[0] = "%s: OK\n%s".formatted(name, result);
-                        } catch (ToolExecutionException x) {
-                            //
-                            // If the exception does not have any root cause,
-                            // the issue is with the process of executing a tool
-                            // which we want to report to the listeners.
-                            // If instead there is a root cause, the tool itself
-                            // got an error, therefore we just need to notify it
-                            // to the llm
-                            //
-                            if (x.getCause() == null) {
-                                on(listeners).loop((l) -> l.onError(x));
-                            } else {
-                                nextPrompt[0] = "%s: ERR %s".formatted(name, String.valueOf(x.getCause()));
-                            }
-                        } catch (Throwable x) {
-                            //
-                            // for any other issues we can't do much more than
-                            // reporting it to the listeners
-                            //
-                            on(listeners).loop((l) -> l.onError(x));
-                        }
+                        executions.add(new ExecutionJSONObject(name, content));
                     }
                 }
             });
 
+            on(listeners).loop((listener) -> {
+                listener.onResponse(listenerAdapter.lastRequest.get(), responseWithTools(executions));
+            });
+
+
+            on(executions).loop((execution) -> {
+                try {
+                    final String result = executeTool(execution);
+                    nextPrompt[0] = "%s: OK\n%s".formatted(execution.name, result);
+                    on(listeners).loop((listener) -> {
+                       listener.onToolExecuted(toolExecutionRequest(execution), result);
+                    });
+                } catch (ToolExecutionException x) {
+                    //
+                    // If the exception does not have any root cause,
+                    // the issue is with the process of executing a tool
+                    // which we want to report to the listeners.
+                    // If instead there is a root cause, the tool itself
+                    // got an error, therefore we just need to notify it
+                    // to the llm
+                    //
+                    if (x.getCause() == null) {
+                        on(listeners).loop((l) -> l.onError(x));
+                    } else {
+                        nextPrompt[0] = "%s: ERR %s".formatted(execution.name, String.valueOf(x.getCause()));
+                    }
+                } catch (Throwable x) {
+                    //
+                    // for any other issues we can't do much more than
+                    // reporting it to the listeners
+                    //
+                    on(listeners).loop((l) -> l.onError(x));
+                }
+            });
+
             ++n;
-        } while (toolExecution[0] && n <= 5);
+        } while (!executions.isEmpty() && n <= 5);
+
+        on(listeners).loop((listener) -> {
+            listener.onChatCompleted(listenerAdapter.lastResponse.get());
+        });
 
         return answer;
     }
+
+    // --------------------------------------------------------- private method
 
     private String executeTool(final ExecutionJSONObject toolExecution) {
         LOG.finest(() -> "executing " + toolExecution.name);
@@ -269,6 +308,62 @@ public class HackerWithoutTools {
             });
         });
         return systemPrompt + "\n" + JToon.encodeJson(array.toString());
+    }
+
+    private ToolExecutionRequest toolExecutionRequest(final ExecutionJSONObject execution) {
+        return ToolExecutionRequest.builder()
+            .id(execution.name + '@' + execution.name.hashCode())
+            .name(execution.name)
+            .arguments(String.valueOf(execution.arguments()))
+            .build();
+    }
+
+    private ChatResponse responseWithTools(final List<ExecutionJSONObject> executions) {
+        final List<ToolExecutionRequest> toolExecutionRequests = new ArrayList();
+        on(executions).loop((execution) -> {
+            toolExecutionRequests.add(toolExecutionRequest(execution));
+        });
+
+        final ChatResponse response = listenerAdapter.lastResponse.get();
+        final AiMessage currentAIMessage =  response.aiMessage();
+        ChatResponse.Builder builder = response.toBuilder().aiMessage(
+            AiMessage.from(currentAIMessage.text(), toolExecutionRequests)
+        );
+
+        return builder.build();
+    }
+
+    // -------------------------------------------------- JeddictListenerAdapter
+
+    static class JeddictListenerAdapter implements ChatModelListener {
+
+        final public ThreadLocal<ChatRequest> lastRequest = new ThreadLocal();
+        final public ThreadLocal<ChatResponse> lastResponse = new ThreadLocal();
+        final public List<JeddictBrainListener> listeners = new CopyOnWriteArrayList<>();
+
+        public JeddictListenerAdapter() {
+        }
+
+        @Override
+        public void onRequest(ChatModelRequestContext requestContext) {
+            on(listeners).loop((listener) -> {
+                listener.onRequest(requestContext.chatRequest());
+            });
+        }
+
+        @Override
+        public void onResponse(ChatModelResponseContext responseContext) {
+            lastRequest.set(responseContext.chatRequest());
+            lastResponse.set(responseContext.chatResponse());
+        }
+
+        @Override
+        public void onError(ChatModelErrorContext errorContext) {
+            on(listeners).loop((listener) -> {
+                listener.onError(errorContext.error());
+            });
+        }
+
     }
 
 }

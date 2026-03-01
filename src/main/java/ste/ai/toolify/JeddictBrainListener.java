@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package io.github.jeddict.ai.lang;
+package ste.ai.toolify;
 
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.data.message.SystemMessage;
@@ -86,7 +86,7 @@ public interface JeddictBrainListener {
      */
     default void onProgress(final String progress, final boolean newThread) {
     }
-    
+
     default void onProgress(final String progress) {
         this.onProgress(progress, false);
     }

@@ -34,10 +34,4 @@ public class ToolNotFoundExceptionTest {
 
         then(new ToolNotFoundException("anotherTool").toolName).isEqualTo("anotherTool");
     }
-
-    @Test
-    public void getCause_returns_null() {
-        then(new ToolNotFoundException("dummyTool").getCause()).isNull();
-    }
-
 }

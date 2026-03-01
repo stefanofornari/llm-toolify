@@ -17,6 +17,7 @@
 
 package ste.ai.toolify;
 
+import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import dev.langchain4j.data.message.AiMessage;
 import dev.langchain4j.data.message.SystemMessage;
 import dev.langchain4j.data.message.UserMessage;
@@ -25,10 +26,12 @@ import dev.langchain4j.model.chat.listener.ChatModelResponseContext;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import dev.langchain4j.model.chat.response.ChatResponse;
 import dev.toonformat.jtoon.JToon;
-import io.github.jeddict.ai.lang.JeddictBrainListener;
+import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.commons.lang3.tuple.Pair;
 import static org.assertj.core.api.BDDAssertions.then;
 import static org.assertj.core.api.BDDAssertions.thenThrownBy;
 import org.json.JSONArray;
@@ -57,7 +60,7 @@ public class HackerWithoutToolsTest {
 
     @Test
     void add_and_remove_listeners() throws Exception {
-        final DummyChatModel model = new DummyChatModel();
+        final DummyChatModel model = chatModel();
         final List<AbstractTool> tools = List.of(new DummyTool());
 
         final HackerWithoutTools hacker = new HackerWithoutTools(
@@ -93,7 +96,7 @@ public class HackerWithoutToolsTest {
 
     @Test
     public void list_of_tools() throws Exception {
-        final DummyChatModel model = new DummyChatModel();
+        final DummyChatModel model = chatModel();
         final List<AbstractTool> tools = List.of(new DummyTool());
 
         HackerWithoutTools hacker = new HackerWithoutTools(
@@ -119,7 +122,7 @@ public class HackerWithoutToolsTest {
             "endpoint", "apikey", "dummy", (o) -> "system message", tools, model
         );
 
-        hacker.chat("use mock 'hello world.txt'");
+        hacker.hack("use mock 'hello world.txt'");
 
         final ChatRequest r = (ChatRequest)listener.lastRequestContext.get().chatRequest();
         final SystemMessage m = (SystemMessage)r.messages().get(0);
@@ -161,7 +164,7 @@ public class HackerWithoutToolsTest {
 
     @Test
     public void execute_tools() throws Exception {
-        final DummyChatModel model = new DummyChatModel();
+        final DummyChatModel model = chatModel();
         final DummyTool tool = new DummyTool();
         final List<AbstractTool> tools = List.of(tool);
 
@@ -172,7 +175,7 @@ public class HackerWithoutToolsTest {
             "endpoint", "apikey", "dummy", (o) -> "system message", tools, model
         );
 
-        hacker.chat("use mock 'dummy tool.txt'");
+        hacker.hack("use mock 'dummy tool.txt'");
         then(tool.executed()).isTrue();
         then(tool.arguments()).isNull();
 
@@ -183,7 +186,7 @@ public class HackerWithoutToolsTest {
         hacker = new HackerWithoutTools(
             "endpoint", "apikey", "dummy", (o) -> "system message", tools, model
         );
-        hacker.chat("use mock 'dummy tool with args.txt'");
+        hacker.hack("use mock 'dummy tool with args.txt'");
         then(tool.executed()).isTrue();
         then(tool.arguments())
             .containsExactly("val1", List.of("val2"));
@@ -206,8 +209,7 @@ public class HackerWithoutToolsTest {
         final HackerWithoutTools hacker = new HackerWithoutTools(
             "endpoint", "apikey", "dummy", (o) -> SYSTEM_PROMPT, tools, model
         );
-
-        hacker.chat(USER_PROMPT);
+        hacker.hack(USER_PROMPT);
 
         //
         // 1. --> prompt
@@ -249,7 +251,7 @@ public class HackerWithoutToolsTest {
 
     @Test
     public void provide_error_message_if_tool_does_not_exist() throws Exception {
-        final DummyChatModel model = new DummyChatModel();
+        final DummyChatModel model = chatModel();
         final DummyTool tool = new DummyTool();
         final List<AbstractTool> tools = List.of(tool);
         final DummyJeddictBrainListener listener = new DummyJeddictBrainListener();
@@ -259,10 +261,12 @@ public class HackerWithoutToolsTest {
         );
 
         hacker.addListener(listener);
-        hacker.chat("use mock 'not existing tool.txt'");
+        hacker.hack("use mock 'not existing tool.txt'");
 
-        then(listener.collector.get(0).toString())
-            .isEqualTo("(onError,ste.ai.toolify.ToolNotFoundException: tool iDoNotExist not found)");
+        then(listener.collector.get(3).getLeft()).isEqualTo("onRequest");
+        final UserMessage msg =
+            (UserMessage)((ChatRequest)listener.collector.get(3).getRight()).messages().get(3);
+        then(msg.contents().toString()).contains("iDoNotExist: ERR java.lang.RuntimeException: tool iDoNotExist not found");
     }
 
     @Test
@@ -270,7 +274,7 @@ public class HackerWithoutToolsTest {
         final String SYSTEM_PROMPT = "system message";
         final String USER_PROMPT = "use mock 'tool in error.txt'";
 
-        final DummyChatModel model = new DummyChatModel();
+        final DummyChatModel model = chatModel();
         final DummyTool tool = new DummyTool();
         final List<AbstractTool> tools = List.of(tool);
         final DummyChatModelListener listener = new DummyChatModelListener();
@@ -281,7 +285,7 @@ public class HackerWithoutToolsTest {
             "endpoint", "apikey", "dummy", (o) -> SYSTEM_PROMPT, tools, model
         );
 
-        hacker.chat(USER_PROMPT);
+        hacker.hack(USER_PROMPT);
 
         final ChatRequest lastRequest = listener.lastResponseContext.get().chatRequest();
         final ChatResponse lastResponse = listener.lastResponseContext.get().chatResponse();
@@ -310,7 +314,7 @@ public class HackerWithoutToolsTest {
 
     @Test
     public void create_calculator_application() throws Exception {
-        final DummyChatModel model = new DummyChatModel();
+        final DummyChatModel model = chatModel();
         final FileSystemTools tools = new FileSystemTools(basedir.toAbsolutePath().toString());
         final List<ChatModelResponseContext> collector = new ArrayList();
 
@@ -318,7 +322,7 @@ public class HackerWithoutToolsTest {
             "endpoint", "apikey", "dummy", (o) -> "system message", List.of(tools), model
         );
 
-        hacker.chat("use mock 'create calculator.txt'");
+        hacker.hack("use mock 'create calculator.txt'");
 
         then(basedir.resolve("calculator")).exists();
         then(basedir.resolve("calculator/pom.xml")).exists();
@@ -327,13 +331,236 @@ public class HackerWithoutToolsTest {
         then(basedir.resolve("calculator/README.md")).exists();
     }
 
+    @Test
+    public void all_listeners_receive_receive_all_events_ok() throws IOException {
+        final String SYSTEM_PROMPT = "use mock 'multi dummy tool.txt'";
+        final String USER_PROMPT = "let's go!";
+        final DummyTool tool = new DummyTool();
+        final DummyChatModel model = chatModel();
+
+        final DummyJeddictBrainListener
+            listener1 = new DummyJeddictBrainListener(),
+            listener2 = new DummyJeddictBrainListener();
+
+        final HackerWithoutTools hacker = new HackerWithoutTools(
+            "endpoint", "apikey", "dummy", (o) -> SYSTEM_PROMPT, List.of(tool), model
+        );
+        hacker.addListener(listener1); hacker.addListener(listener2);
+        tool.addListener(listener1); tool.addListener(listener2);
+
+        hacker.hack(USER_PROMPT);
+
+        //
+        // 0 - chatStarted
+        //
+        final AtomicInteger i = new AtomicInteger();
+        on(listener1, listener2).loop((listener) -> {
+            final Pair<String, Object> args = listener.collector.get(i.get());
+
+            then(args.getLeft()).isEqualTo("onChatStarted");
+
+            final SystemMessage s = (SystemMessage)((Object[])args.getRight())[0];
+            final UserMessage u = (UserMessage)((Object[])args.getRight())[1];
+            then(s.text()).startsWith(SYSTEM_PROMPT);
+            then(u.singleText()).isEqualToIgnoringNewLines(USER_PROMPT);
+        });
+
+        //
+        // 1 - chatRequest - prompt
+        //
+        i.getAndIncrement();
+        on(listener1, listener2).loop((listener) -> {
+            final Pair<String, Object> args = listener.collector.get(i.get());
+
+            then(args.getLeft()).isEqualTo("onRequest");
+
+            final ChatRequest req = (ChatRequest)args.getRight();
+            final SystemMessage s = (SystemMessage)req.messages().get(0);
+            final UserMessage u = (UserMessage)req.messages().get(1);
+
+            then(s.text()).startsWith(SYSTEM_PROMPT);
+            then(u.singleText()).startsWith(USER_PROMPT);
+        });
+
+        //
+        // 2 - chatResponse - prompt
+        //
+        i.getAndIncrement();
+        on(listener1, listener2).loop((listener) -> {
+            final Pair<String, Object> args = listener.collector.get(i.get());
+
+            then(args.getLeft()).isEqualTo("onResponse");
+
+            final ChatRequest req = (ChatRequest)((Object[])args.getRight())[0];
+            final ChatResponse res = (ChatResponse)((Object[])args.getRight())[1];
+            final SystemMessage s = (SystemMessage)req.messages().get(0);
+            final UserMessage u = (UserMessage)req.messages().get(1);
+
+            then(s.text()).startsWith(SYSTEM_PROMPT);
+            then(u.singleText()).startsWith(USER_PROMPT);
+            then(res.aiMessage().hasToolExecutionRequests()).isTrue();
+        });
+
+        //
+        // 3 - toolProgress
+        //
+        i.getAndIncrement();
+        on(listener1, listener2).loop((listener) -> {
+            final Pair<String, Object> args = listener.collector.get(i.get());
+
+            then(args.getLeft()).isEqualTo("onProgress");
+
+            then(args.getRight()).isEqualTo("\nexecuting dummyTool");
+        });
+
+        //
+        // 4 - toolExecuted
+        //
+        i.getAndIncrement();
+        on(listener1, listener2).loop((listener) -> {
+            final Pair<String, Object> args = listener.collector.get(i.get());
+
+            then(args.getLeft()).isEqualTo("onToolExecuted");
+
+            final Object[] exec = (Object[])args.getRight();
+            final ToolExecutionRequest request = (ToolExecutionRequest)exec[0];
+            final String result = (String)exec[1];
+
+            then(request.name()).isEqualTo("dummyTool");
+            then(result).isEqualTo("true");
+        });
+
+        //
+        // 5 - chatRequest - tool execution result
+        //
+        i.getAndIncrement();
+        on(listener1, listener2).loop((listener) -> {
+            final Pair<String, Object> args = listener.collector.get(i.get());
+
+            then(args.getLeft()).isEqualTo("onRequest");
+
+            final ChatRequest req = (ChatRequest)args.getRight();
+
+            then(req.messages()).hasSize(4);
+            then(((UserMessage)req.messages().get(3)).singleText()).isEqualTo("dummyTool: OK\ntrue");
+        });
+
+        //
+        //  6 - chatResponse
+        //
+        i.getAndIncrement();
+        on(listener1, listener2).loop((listener) -> {
+            final Pair<String, Object> args = listener.collector.get(i.get());
+
+            then(args.getLeft()).isEqualTo("onResponse");
+
+            final ChatRequest req = (ChatRequest)((Object[])args.getRight())[0];
+            final ChatResponse res = (ChatResponse)((Object[])args.getRight())[1];
+            final SystemMessage s = (SystemMessage)req.messages().get(0);
+            final UserMessage u = (UserMessage)req.messages().get(1);
+
+            then(s.text()).startsWith(SYSTEM_PROMPT);
+            then(u.singleText()).startsWith(USER_PROMPT);
+            then(res.aiMessage().hasToolExecutionRequests()).isTrue();
+        });
+
+        //
+        // 7 - toolProgress
+        //
+        i.getAndIncrement();
+        on(listener1, listener2).loop((listener) -> {
+            final Pair<String, Object> args = listener.collector.get(i.get());
+
+            then(args.getLeft()).isEqualTo("onProgress");
+
+            then((String)args.getRight()).startsWith("\nexecuting dummyToolWithArgs");
+        });
+
+        //
+        // 8 - toolExecuted
+        //
+        i.getAndIncrement();
+        on(listener1, listener2).loop((listener) -> {
+            final Pair<String, Object> args = listener.collector.get(i.get());
+
+            then(args.getLeft()).isEqualTo("onToolExecuted");
+
+            final Object[] exec = (Object[])args.getRight();
+            final ToolExecutionRequest request = (ToolExecutionRequest)exec[0];
+            final String result = (String)exec[1];
+
+            then(request.name()).isEqualTo("dummyToolWithArgs");
+            then(result).isEqualTo("true\narg1: Hello World\narg2: [Hello Paris, Hello Delhi, Hello Rome]");
+        });
+
+        //
+        // 9 - chatRequest - tool execution result
+        //
+        i.getAndIncrement();
+        on(listener1, listener2).loop((listener) -> {
+            final Pair<String, Object> args = listener.collector.get(i.get());
+
+            then(args.getLeft()).isEqualTo("onRequest");
+
+            final ChatRequest req = (ChatRequest)args.getRight();
+
+            then(req.messages()).hasSize(6);
+            then(((UserMessage)req.messages().get(5)).singleText())
+                .isEqualTo("dummyToolWithArgs: OK\ntrue\narg1: Hello World\narg2: [Hello Paris, Hello Delhi, Hello Rome]");
+        });
+
+        //
+        //  10 - chatResponse
+        //
+        i.getAndIncrement();
+        on(listener1, listener2).loop((listener) -> {
+            final Pair<String, Object> args = listener.collector.get(i.get());
+
+            then(args.getLeft()).isEqualTo("onResponse");
+
+            final ChatRequest req = (ChatRequest)((Object[])args.getRight())[0];
+            final ChatResponse res = (ChatResponse)((Object[])args.getRight())[1];
+            final SystemMessage s = (SystemMessage)req.messages().get(0);
+            final UserMessage u = (UserMessage)req.messages().get(1);
+
+            then(s.text()).startsWith(SYSTEM_PROMPT);
+            then(u.singleText()).startsWith(USER_PROMPT);
+            then(res.aiMessage().hasToolExecutionRequests()).isFalse();
+        });
+
+        //
+        // 11 - chatCompleted
+        //
+        i.getAndIncrement();
+        on(listener1, listener2).loop((listener) -> {
+            final Pair<String, Object> args = listener.collector.get(i.get());
+
+            then(args.getLeft()).isEqualTo("onChatCompleted");
+
+            final ChatResponse res = (ChatResponse)args.getRight();
+            then(res.aiMessage().text()).isEqualToIgnoringNewLines("Done executing the DummyTool");
+        });
+    }
 
     // --------------------------------------------------------- private methods
 
     private DummyChatModel chatModel(final ChatModelListener listener) {
+        final DummyChatModel model = chatModel();
+
+        model.listeners().add(listener);
+
+        return model;
+    }
+
+    /**
+     * A model used in LLMToolify must be initialized with the listener adapter
+     * so that events generated by the model can be properly manipulated and
+     * routed by HackerWithoutTool
+     */
+    private DummyChatModel chatModel() {
         final DummyChatModel model = new DummyChatModel();
 
-        model.addListener(listener);
+        model.addListener(new HackerWithoutTools.JeddictListenerAdapter());
 
         return model;
     }

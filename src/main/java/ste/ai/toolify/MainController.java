@@ -113,7 +113,7 @@ public class MainController {
             @Override
             protected String call() throws Exception {
                 // Runs in background thread
-                return llmService.chat(userPrompt);
+                return llmService.hack(userPrompt);
             }
 
             @Override

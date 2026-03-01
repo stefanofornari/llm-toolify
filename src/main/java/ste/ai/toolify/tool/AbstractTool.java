@@ -16,7 +16,6 @@
 package ste.ai.toolify.tool;
 
 import dev.langchain4j.exception.ToolExecutionException;
-import io.github.jeddict.ai.lang.JeddictBrainListener;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -28,6 +27,8 @@ import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import ste.ai.toolify.JeddictBrainListener;
+import static ste.lloop.Loop.on;
 
 public abstract class AbstractTool {
 
@@ -95,6 +96,7 @@ public abstract class AbstractTool {
 
     public void progress(final String message) {
         log(() -> message);
+        on(listeners).loop((l) -> l.onProgress(message + "\n", true));
     }
 
     public String basedir() {

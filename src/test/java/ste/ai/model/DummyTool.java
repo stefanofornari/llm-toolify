@@ -70,6 +70,7 @@ public class DummyTool extends AbstractTool {
         List<String> arg2 // no annotation on purpose
     ) {
         arguments = new Object[] { arg1, arg2 };
+        progress("executing dummyToolWithArgs with args (%s,%s)".formatted(arg1, String.valueOf(arg2)));
         return "%s\narg1: %s\narg2: %s"
             .formatted(String.valueOf(executed = true), arg1, String.valueOf(arg2));
     }
@@ -77,30 +78,35 @@ public class DummyTool extends AbstractTool {
     @Tool("simple READONLY tool that does nothing")
     @ToolPolicy(READONLY)
     public void dummyToolRead() {
+        progress("executing dummyToolRead");
         executed = true;
     }
 
     @Tool("simple INTERACTIVE tool that does nothing")
     @ToolPolicy(INTERACTIVE)
     public void dummyToolInteractive() {
+        progress("executing dummyToolInteractive");
         executed = true;
     }
 
     @Tool("simple READWRITE tool that does nothing")
     @ToolPolicy(READWRITE)
     public void dummyToolWrite() {
+        progress("executing dummyToolWriter");
         executed = true;
     }
 
     @Tool() // no description on purpose
     @ToolPolicy(UNKNOWN)
     public void dummyToolUnknown() {
+        progress("executing dummyToolUnknown");
         executed = true;
     }
 
     @Tool() // no description on purpose
     @ToolPolicy(UNKNOWN)
     public void dummyToolError() {
+        progress("executing dummyToolError");
         throw new RuntimeException("error in dummyTool");
     }
 }
