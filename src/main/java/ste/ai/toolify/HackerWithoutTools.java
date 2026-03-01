@@ -155,7 +155,7 @@ public class HackerWithoutTools {
                     if (type.startsWith("tool:")) {
                         final String name = type.substring(5);
                         final String content = block.getLiteral();
-                        LOG.finest(() ->
+                        LOG.info(() ->
                             "found tool block for tool %s with content:\n%s".formatted(
                                 name,
                                 StringUtils.abbreviateMiddle(content, "...", 100)
