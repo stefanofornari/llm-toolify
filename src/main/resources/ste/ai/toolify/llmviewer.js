@@ -15,7 +15,13 @@ const md = window.markdownit({
 
 function content(text) {
     if (!text) {
-        text = "";
+        return;
     }
-    document.getElementById('content').innerHTML = md.render(text.trim());
+
+    const mainDiv = document.getElementById('content');
+    const contentDiv = document.createElement('div');
+
+    contentDiv.innerHTML = md.render(text.trim());
+
+    mainDiv.appendChild(contentDiv);
 }

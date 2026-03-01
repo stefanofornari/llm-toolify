@@ -1,5 +1,10 @@
 package ste.ai.toolify;
 
+import dev.langchain4j.data.message.AiMessage;
+import dev.langchain4j.data.message.UserMessage;
+import dev.langchain4j.model.chat.request.ChatRequest;
+import dev.langchain4j.model.chat.response.ChatResponse;
+import java.util.List;
 import java.util.concurrent.ExecutorCompletionService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -139,9 +144,32 @@ class MainControllerTest {
 
         controller.executor(EXECUTOR);
 
-        controller.userPromptTextArea().setText("this is a prompt");
+            controller.userPromptTextArea().setText("this is a prompt");
         controller.sendChatRequest(); // trigger a new task to send the request
 
         completionService.poll(250, TimeUnit.MILLISECONDS);
+    }
+
+    @Test
+    public void show_message_returned_by_llm(FxRobot robot) {
+        List<JeddictBrainListener> listeners = controller.llmService.listeners();
+
+        final UserMessage msg = UserMessage.from("Hello world!");
+        final ChatRequest request = ChatRequest.builder().messages(UserMessage.from("Say hello")).build();
+        final ChatResponse response = ChatResponse.builder().aiMessage(
+            AiMessage.aiMessage("Hello World!")
+        ).build();
+
+        on(listeners).loop((listener) -> {
+            listener.onResponse(request, response);
+        });
+
+        robot.interact(() -> {
+            Object o = controller.llmResponseViewer().getEngine().executeScript("""
+                document.getElementById('content').innerHTML
+                """
+            );
+            then(String.valueOf(o)).contains("Hello World!");
+        });
     }
 }

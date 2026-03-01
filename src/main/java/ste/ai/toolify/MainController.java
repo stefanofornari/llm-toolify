@@ -1,5 +1,7 @@
 package ste.ai.toolify;
 
+import dev.langchain4j.model.chat.request.ChatRequest;
+import dev.langchain4j.model.chat.response.ChatResponse;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -17,6 +19,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Handler;
 import java.util.logging.Logger;
+import javafx.application.Platform;
 import javafx.concurrent.Task;
 import javafx.scene.control.TextArea;
 import javafx.scene.web.WebEngine;
@@ -24,7 +27,7 @@ import netscape.javascript.JSObject;
 import ste.ai.toolify.tool.FileSystemTools;
 
 
-public class MainController {
+public class MainController implements JeddictBrainListener {
 
     @FXML private TextArea systemPromptTextArea;
     @FXML private TextArea userPromptTextArea;
@@ -35,7 +38,9 @@ public class MainController {
     @FXML private Button configButton;
     @FXML private Button jsonButton;
 
-    private HackerWithoutTools llmService; // Make it non-final so it can be re-initialized
+    private final Logger LOG = Logger.getLogger(MainController.class.getName());
+
+    protected HackerWithoutTools llmService; // Make it non-final so it can be re-initialized
 
     private Handler requestHandler;
     private Handler responseHandler;
@@ -56,8 +61,8 @@ public class MainController {
                 (o) -> systemPromptTextArea.getText(),
                 List.of(new FileSystemTools("."))
             );
+            this.llmService.addListener(this);
         } catch (IOException x) {
-
         }
     }
 
@@ -115,13 +120,6 @@ public class MainController {
                 // Runs in background thread
                 return llmService.hack(userPrompt);
             }
-
-            @Override
-            protected void succeeded() {
-                JSObject window = (JSObject) llmResponseViewer.getEngine().executeScript("window");
-                window.setMember("_llmText_", getValue());
-                llmResponseViewer.getEngine().executeScript("content(window._llmText_);");
-            }
         });
     }
 
@@ -166,27 +164,6 @@ public class MainController {
         }
     }
 
-    @FXML
-    private void showJsonViewer() {
-        try {
-            Stage jsonStage = new Stage();
-            jsonStage.setTitle("JSON Viewer");
-            jsonStage.initModality(Modality.WINDOW_MODAL);
-            jsonStage.initOwner(jsonButton.getScene().getWindow());
-
-            WebView webView = new WebView();
-            webView.getEngine().load(
-                getClass().getResource("/ste/ai/toolify/json/jsonviewer.html").toExternalForm()
-            );
-
-            Scene scene = new Scene(webView, 800, 600);
-            jsonStage.setScene(scene);
-            jsonStage.show();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
     // Clean up the handlers when the controller is no longer needed
     public void cleanup() {
         Logger.getLogger("dev.langchain4j.http.client.log").removeHandler(requestHandler);
@@ -221,6 +198,18 @@ public class MainController {
 
     public TextArea userPromptTextArea() {
         return userPromptTextArea;
+    }
+
+    // ---------------------------------------------------- JeddictBrainListener
+
+    public void onResponse(final ChatRequest request, final ChatResponse response) {
+        final StringBuffer sb = new StringBuffer();
+
+        Platform.runLater(() -> {
+            JSObject window = (JSObject) llmResponseViewer.getEngine().executeScript("window");
+            window.setMember("_llmText_", response.aiMessage().text());
+            llmResponseViewer.getEngine().executeScript("content(window._llmText_);");
+        });
     }
 
 }
