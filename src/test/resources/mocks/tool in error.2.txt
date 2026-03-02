@@ -1,2 +1,7 @@
-Thanks for reporting the error...
+This tool execution is malformed
+
+```tool:malformedTool
+"arg1": "value1"
+"arg2": {
+```
 

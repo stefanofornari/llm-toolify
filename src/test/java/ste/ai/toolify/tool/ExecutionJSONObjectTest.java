@@ -15,11 +15,10 @@
  * limitations under the License.
  */
 
-package ste.ai.tool;
+package ste.ai.toolify.tool;
 
 import java.util.List;
 import static org.assertj.core.api.BDDAssertions.then;
-import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 import ste.ai.toolify.tool.ExecutionJSONObject;
 
@@ -50,36 +49,18 @@ public class ExecutionJSONObjectTest {
 
     @Test
     public void arguments_by_direct_access() {
-        ExecutionJSONObject o = new ExecutionJSONObject("anotherTool", """
+        final ExecutionJSONObject o = new ExecutionJSONObject("anotherTool", """
         "arg1": "string value",
         "arg2": null,
         "arg3": [
              "one", "two", "three"
         ]
         }""");
-        then(o.length()).isEqualTo(3);
-        then(o.name).isEqualTo("anotherTool");
-        then(o.getString("arg1")).isEqualTo("string value");
-        then(o.get("arg2")).isEqualTo(JSONObject.NULL);
-        then(o.getJSONArray("arg3").toList()).containsExactly("one", "two", "three");
-    }
+        final Object[] a = o.arguments("arg1", "arg2", "arg3");
 
-    @Test
-    public void arguments_returns_their_values_by_name() {
-        ExecutionJSONObject o = new ExecutionJSONObject("anotherTool", """
-        "arg1": "string value",
-        "arg2": null,
-        "arg3": [
-             "one", "two", "three"
-        ]
-        """);
         then(o.name).isEqualTo("anotherTool");
-
-        final Object[] args =  o.arguments("arg3", "arg1", "arg2");
-        then(args).hasSize(3);
-        then((List)args[0]).containsExactly("one", "two", "three");
-        then(args[1]).isEqualTo("string value");
-        then(args[2]).isNull();
+        then(o.arguments()).hasSize(3);
+        then(a).containsExactly("string value", null, List.of("one", "two", "three"));
     }
 
     @Test
@@ -88,5 +69,20 @@ public class ExecutionJSONObjectTest {
         "argOne": "valueOne"
         """);
         then(o.arguments("argOne", "argTwo")).containsExactly("valueOne", null);
+    }
+
+    @Test
+    public void turn_into_echo_execution_in_case_of_errors() {
+        final String INVALID_JSON = """
+        "argOne": "valueOne"
+        "argTwo": {
+        """;
+        final ExecutionJSONObject o = new ExecutionJSONObject("aTool", INVALID_JSON);
+        then(o.name).isEqualTo("echo");
+        then(o.arguments()).containsExactly("""
+        ERR error parsing tool execution for aTool, make sure it is in well formed JSON:
+        "argOne": "valueOne"
+        "argTwo": {
+        """);
     }
 }

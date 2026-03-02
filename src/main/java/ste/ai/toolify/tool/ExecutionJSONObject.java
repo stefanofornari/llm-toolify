@@ -24,27 +24,44 @@ import org.json.JSONObject;
 import static ste.lloop.Loop.on;
 
 /**
- * JSONObject extension to represent a tool execution. It basically consists of
+ * Object to represent a tool execution. It basically consists of
  * a name and a list of arguments. Each argument can be a string or an array
  * of strings (for now, more types may be supported in the future).
+ * If an error arises while converting the arguments to JSON, it falls back
+ * to an execution of the tool "echo" with a proper error message.
  */
-public class ExecutionJSONObject extends JSONObject {
+public class ExecutionJSONObject {
 
-    final public String name;
+    public String name;
+    public JSONObject arguments;
 
     public ExecutionJSONObject(final String name) {
         this(name, "");
     }
 
     public ExecutionJSONObject(final String name, final String content) {
-        super("{" + content + "}");
-        this.name = name;
+        try {
+            this.name = name;
+            this.arguments = new JSONObject("{" + content + "}");
+        } catch (final Throwable t) {
+            this.name = "echo";
+            this.arguments = new JSONObject();
+            arguments.put(
+                "message",
+                "ERR error parsing tool execution for %s, make sure it is in well formed JSON:\n%s"
+                    .formatted(name, content)
+           );
+        }
+    }
+
+    public String name() {
+        return name;
     }
 
     public Object[] arguments() {
         final List values = new ArrayList();
-        on(keys()).loop((key) -> {
-            values.add(get(key));
+        on(arguments.keys()).loop((key) -> {
+            values.add(arguments.get(key));
         });
         return values.toArray();
     }
@@ -52,7 +69,7 @@ public class ExecutionJSONObject extends JSONObject {
     public Object[] arguments(String... args) {
         final Object[] values = new Object[args.length];
         on(args).loop((i, arg) -> {
-                values[i] = opt(arg);
+                values[i] = arguments.opt(arg);
                 if (values[i] instanceof JSONArray jarray) {
                     values[i] = jarray.toList();
                 } else if (values[i] == JSONObject.NULL) {

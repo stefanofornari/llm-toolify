@@ -44,6 +44,7 @@ import ste.ai.model.DummyTool;
 import ste.ai.test.DummyJeddictBrainListener;
 import ste.ai.toolify.tool.AbstractTool;
 import ste.ai.toolify.tool.FileSystemTools;
+import ste.ai.toolify.tool.UtilTools;
 import static ste.lloop.Loop.on;
 
 /**
@@ -276,7 +277,7 @@ public class HackerWithoutToolsTest {
 
         final DummyChatModel model = chatModel();
         final DummyTool tool = new DummyTool();
-        final List<AbstractTool> tools = List.of(tool);
+        final List<AbstractTool> tools = List.of(tool, new UtilTools());
         final DummyChatModelListener listener = new DummyChatModelListener();
 
         model.addListener(listener);
@@ -292,7 +293,7 @@ public class HackerWithoutToolsTest {
 
         then(lastResponse.aiMessage().text()).isEqualToIgnoringNewLines("Thanks for reporting the error...");
         Object[] messages = lastRequest.messages().toArray();
-        then(messages).hasSize(4);
+        then(messages).hasSize(6);
 
         SystemMessage systemPrompt = null;
         UserMessage userMessage = null;
@@ -310,6 +311,12 @@ public class HackerWithoutToolsTest {
 
         userMessage = (UserMessage)messages[i++];
         then(userMessage.singleText()).isEqualTo("dummyToolError: ERR java.lang.RuntimeException: error in dummyTool");
+
+        aiMessage = (AiMessage)messages[i++];
+        then(aiMessage.text()).startsWith("This tool execution is malformed");
+
+        userMessage = (UserMessage)messages[i++];
+        then(userMessage.singleText()).startsWith("echo: OK\nERR error parsing tool execution for malformedTool");
     }
 
     @Test
