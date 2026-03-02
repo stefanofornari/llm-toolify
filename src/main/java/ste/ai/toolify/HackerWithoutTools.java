@@ -63,6 +63,9 @@ public class HackerWithoutTools {
 
     private final JeddictListenerAdapter listenerAdapter;
 
+    private int maxIterations = 10;
+
+
     public HackerWithoutTools(
         final String endpoint,
         final String apiKey,
@@ -101,6 +104,14 @@ public class HackerWithoutTools {
                 .listeners(List.of(new JeddictListenerAdapter()))
                 .build()
         );
+    }
+
+    public void maxIterations(final int n) {
+        maxIterations = n;
+    }
+
+    public int maxIterations() {
+        return maxIterations;
     }
 
     public List<JeddictBrainListener> listeners() {
@@ -202,7 +213,7 @@ public class HackerWithoutTools {
             });
 
             ++n;
-        } while (!executions.isEmpty() && n <= 5);
+        } while (!executions.isEmpty() && n < maxIterations);
 
         on(listeners).loop((listener) -> {
             listener.onChatCompleted(listenerAdapter.lastResponse.get());

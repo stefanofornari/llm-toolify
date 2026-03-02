@@ -549,6 +549,37 @@ public class HackerWithoutToolsTest {
         });
     }
 
+    @Test
+    public void limit_the_number_of_req_res() throws IOException {
+        final String SYSTEM_PROMPT = "use mock 'multi dummy tool.txt'";
+        final String USER_PROMPT = "let's go!";
+        final DummyTool tool = new DummyTool();
+        final DummyChatModel model = chatModel();
+        final DummyJeddictBrainListener listener = new DummyJeddictBrainListener();
+
+        final HackerWithoutTools hacker = new HackerWithoutTools(
+            "endpoint", "apikey", "dummy", (o) -> SYSTEM_PROMPT, List.of(tool), model
+        );
+        hacker.addListener(listener); hacker.maxIterations(1);
+
+        hacker.hack(USER_PROMPT);
+
+        //
+        // just one iteration
+        //
+        then(listener.collector).hasSize(5);
+
+        listener.collector.clear();
+        hacker.maxIterations(10);
+
+        hacker.hack(USER_PROMPT);
+
+        //
+        // full roundtrip
+        //
+        then(listener.collector).hasSize(7);
+    }
+
     // --------------------------------------------------------- private methods
 
     private DummyChatModel chatModel(final ChatModelListener listener) {

@@ -22,6 +22,8 @@ import org.testfx.framework.junit5.ApplicationExtension;
 import org.testfx.framework.junit5.Start;
 
 import static org.assertj.core.api.BDDAssertions.then;
+import ste.ai.toolify.tool.FileSystemTools;
+import ste.ai.toolify.tool.UtilTools;
 import static ste.lloop.Loop.on;
 
 @ExtendWith(ApplicationExtension.class)
@@ -41,6 +43,14 @@ class MainControllerTest {
         stage.setMaxWidth(800);
         stage.setMaxHeight(600);
         stage.show();
+    }
+
+    @Test
+    public void llm_service_setup() {
+        then(controller.llmService.tools).hasSize(2);
+        then(controller.llmService.tools.get(0)).isInstanceOf(UtilTools.class);
+        then(controller.llmService.tools.get(1)).isInstanceOf(FileSystemTools.class);
+        then(controller.llmService.maxIterations()).isEqualTo(25);
     }
 
     @Test
