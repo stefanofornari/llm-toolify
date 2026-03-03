@@ -1,7 +1,6 @@
 package ste.ai.toolify;
 
 import dev.dirs.ProjectDirectories;
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -16,16 +15,17 @@ public class Config {
     public static final String API_KEY = "key";
     public static final String MODEL_NAME = "model";
     public static final String ENDPOINT = "endpoint";
+    public static final String WORKING_DIR = "cwd";
 
     private final JSONConfiguration config; // Use CompositeConfiguration
-    private final Path configFile; 
+    private final Path configFile;
     private final FileBasedConfigurationBuilder<JSONConfiguration> jsonBuilder; // To access the file config directly for saving
 
     public Config() {
         ProjectDirectories projDirs = ProjectDirectories.from("ste", "", "toolify");
         String configDir = projDirs.configDir;
-        configFile = Paths.get(configDir, "config.json"); 
-        
+        configFile = Paths.get(configDir, "config.json");
+
         try {
             if (!Files.exists(configFile.getParent())) {
                 Files.createDirectories(configFile.getParent());
@@ -35,10 +35,10 @@ public class Config {
             jsonBuilder = new FileBasedConfigurationBuilder<>(JSONConfiguration.class)
                 .configure(params.fileBased().setFile(configFile.toFile()));
             jsonBuilder.setAutoSave(true); // Enable auto-saving changes to the file
-            
+
             if (!Files.exists(configFile)) {
                 Files.writeString(
-                    configFile, 
+                    configFile,
                     """
                     {
                         "%s":"%s",

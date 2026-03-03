@@ -25,6 +25,7 @@ import javafx.scene.control.TextArea;
 import javafx.scene.web.WebEngine;
 import netscape.javascript.JSObject;
 import ste.ai.toolify.tool.FileSystemTools;
+import ste.ai.toolify.tool.UtilTools;
 
 
 public class MainController implements JeddictBrainListener {
@@ -59,8 +60,9 @@ public class MainController implements JeddictBrainListener {
                 config.entry(Config.API_KEY),
                 config.entry(Config.MODEL_NAME),
                 (o) -> systemPromptTextArea.getText(),
-                List.of(new FileSystemTools("."))
+                List.of(new UtilTools(), new FileSystemTools("."))
             );
+            this.llmService.maxIterations(25);
             this.llmService.addListener(this);
         } catch (IOException x) {
         }

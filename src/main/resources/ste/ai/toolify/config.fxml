@@ -1,28 +1,56 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Hyperlink?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.ColumnConstraints?>
 <?import javafx.scene.layout.GridPane?>
 <?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.RowConstraints?>
 <?import javafx.scene.layout.VBox?>
 
-<VBox xmlns="http://javafx.com/javafx/8.0.171" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ste.ai.toolify.ConfigController">
+<VBox xmlns="http://javafx.com/javafx/25" xmlns:fx="http://javafx.com/fxml/1" fx:controller="ste.ai.toolify.ConfigController">
     <GridPane hgap="10" vgap="10">
-        <Label text="Endpoint:" GridPane.rowIndex="0" GridPane.columnIndex="0"/>
-        <TextField fx:id="endpointField" GridPane.rowIndex="0" GridPane.columnIndex="1"/>
-        
-        <Label text="API Key:" GridPane.rowIndex="1" GridPane.columnIndex="0"/>
-        <TextField fx:id="keyField" GridPane.rowIndex="1" GridPane.columnIndex="1"/>
-        
-        <Label text="Model:" GridPane.rowIndex="2" GridPane.columnIndex="0"/>
-        <TextField fx:id="modelField" GridPane.rowIndex="2" GridPane.columnIndex="1"/>
+        <Label text="Endpoint:" GridPane.columnIndex="0" GridPane.rowIndex="0" />
+        <TextField fx:id="endpointField" GridPane.columnIndex="1" GridPane.rowIndex="0" />
+
+        <Label text="API Key:" GridPane.columnIndex="0" GridPane.rowIndex="1" />
+        <TextField fx:id="keyField" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+
+        <Label text="Model:" GridPane.columnIndex="0" GridPane.rowIndex="2" />
+        <TextField fx:id="modelField" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+
+        <!-- Working Directory Section -->
+        <Label text="Working Directory:" GridPane.columnIndex="0" GridPane.rowIndex="3" />
+        <TextField fx:id="workingDirField" promptText="Select directory..." GridPane.columnIndex="1" GridPane.rowIndex="3" />
+        <Button fx:id="browseButton" onAction="#browseDirectory" text="Browse..." GridPane.columnIndex="2" GridPane.rowIndex="3" />
+      <columnConstraints>
+         <ColumnConstraints />
+         <ColumnConstraints />
+         <ColumnConstraints />
+      </columnConstraints>
+      <rowConstraints>
+         <RowConstraints />
+         <RowConstraints />
+         <RowConstraints />
+         <RowConstraints />
+      </rowConstraints>
+      <opaqueInsets>
+         <Insets />
+      </opaqueInsets>
+      <padding>
+         <Insets bottom="5.0" />
+      </padding>
     </GridPane>
-    
-    <HBox spacing="10" style="-fx-padding: 10 0 0 0;">
-        <Button fx:id="saveButton" text="Save" onAction="#handleSave"/>
-        <Button fx:id="cancelButton" text="Cancel" onAction="#handleCancel"/>
-        <Hyperlink fx:id="settingsFolderLink" text="Open Settings Folder" onAction="#openSettingsFolder" />
+
+    <HBox alignment="CENTER_LEFT" spacing="10" style="-fx-border-width: 5;">
+        <Button fx:id="saveButton" onAction="#handleSave" text="Save" />
+        <Button fx:id="cancelButton" onAction="#handleCancel" text="Cancel" />
+        <Hyperlink fx:id="settingsFolderLink" alignment="CENTER_RIGHT" onAction="#openSettingsFolder" text="Open Settings Folder" />
     </HBox>
+   <padding>
+      <Insets bottom="7.0" left="7.0" right="7.0" top="7.0" />
+   </padding>
 </VBox>
